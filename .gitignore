@@ -1,0 +1,25 @@
+# Generated large test data files
+data/points_uniform.txt
+data/points_clustered.txt
+data/points_large_test.txt
+
+# Compiled binaries
+main
+main.exe
+*.o
+*.a
+*.so
+
+# Build artifacts
+*.out
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
