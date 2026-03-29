@@ -3,6 +3,7 @@
 #include <chrono>
 #include <iomanip>
 #include <algorithm>
+#include <random>
 #include "include/structures.h"
 #include "include/dataset.h"
 #include "include/bounding-box.h"
@@ -11,63 +12,105 @@
 
 using namespace std;
 
-int main() {
-    cout << "========================================" << endl;
-    cout << "  POINT-IN-POLYGON BASELINE BENCHMARK" << endl;
-    cout << "  Task 9: Performance Measurement" << endl;
-    cout << "========================================" << endl << endl;
+// Generate uniform points in memory (no file I/O)
+vector<Point> generateUniformPointsInMemory(long count, double minX, double maxX, double minY, double maxY) {
+    vector<Point> points;
+    points.reserve(count);
     
-    cout << "[PHASE 1] Loading Datasets..." << endl;
+    mt19937 gen(42);  // Fixed seed for reproducibility
+    uniform_real_distribution<double> distX(minX, maxX);
+    uniform_real_distribution<double> distY(minY, maxY);
     
-    auto loadStart = chrono::high_resolution_clock::now();
+    for (long i = 0; i < count; i++) {
+        points.push_back({distX(gen), distY(gen)});
+    }
+    return points;
+}
+
+// Generate clustered points in memory (no file I/O)
+vector<Point> generateClusteredPointsInMemory(long count, double minX, double maxX, double minY, double maxY) {
+    vector<Point> points;
+    points.reserve(count);
     
-    cout << "  - Loading polygons from 'data/polygons.txt'..." << endl;
-    vector<Polygon> polygons = loadPolygons("data/polygons.txt");
-    cout << "    > Loaded " << polygons.size() << " polygons" << endl;
+    mt19937 gen(42);  // Fixed seed for reproducibility
     
-    cout << "  - Regenerating 'data/points_uniform.txt' with 150,000,000 points..." << endl;
-    generateUniformPoints(150000000, 0, 100, 0, 100, "data/points_uniform.txt");
-    cout << "    > Generated and saved to 'data/points_uniform.txt'" << endl;
+    // Create 5 clusters
+    long pointsPerCluster = count / 5;
+    double clusterWidth = (maxX - minX) / 5;
+    double clusterHeight = (maxY - minY) / 2;
     
-    cout << "  - Regenerating 'data/points_clustered.txt' with 150,000,000 points..." << endl;
-    generateClusteredPoints(150000000, "data/points_clustered.txt");
-    cout << "    > Generated and saved to 'data/points_clustered.txt'" << endl;
-    
-    auto loadEnd = chrono::high_resolution_clock::now();
-    auto loadDuration = chrono::duration_cast<chrono::seconds>(loadEnd - loadStart);
-    
-    cout << "  - File generation completed in " << loadDuration.count() << " seconds" << endl << endl;
-    
-    cout << "========================================================================" << endl;
-    cout << "           TEST 1: UNIFORM POINT DISTRIBUTION" << endl;
-    cout << "========================================================================" << endl << endl;
-    
-    cout << "[PHASE 1A] Loading Uniform Points..." << endl;
-    auto uniformLoadStart = chrono::high_resolution_clock::now();
-    vector<Point> queryPointsUniform = loadPoints("data/points_uniform.txt");
-    auto uniformLoadEnd = chrono::high_resolution_clock::now();
-    auto uniformLoadDuration = chrono::duration_cast<chrono::seconds>(uniformLoadEnd - uniformLoadStart);
-    cout << "  - Loaded " << queryPointsUniform.size() << " uniform points in " 
-         << uniformLoadDuration.count() << " seconds" << endl << endl;
-    
-    cout << "[PHASE 2A] Preprocessing (Computing Bounding Boxes)..." << endl;
-    auto uniformPrepStart = chrono::high_resolution_clock::now();
-    for (auto& poly : polygons) {
-        if (poly.bbox.min_x == 0 && poly.bbox.max_x == 0 &&
-            poly.bbox.min_y == 0 && poly.bbox.max_y == 0) {
-            assignBoundingBox(poly);
+    for (int cluster = 0; cluster < 5; cluster++) {
+        double centerX = minX + (cluster + 0.5) * clusterWidth;
+        double centerY = minY + (cluster % 2 == 0 ? 0.25 : 0.75) * (maxY - minY);
+        
+        normal_distribution<double> distX(centerX, clusterWidth / 4);
+        normal_distribution<double> distY(centerY, clusterHeight / 4);
+        
+        for (long i = 0; i < pointsPerCluster; i++) {
+            points.push_back({distX(gen), distY(gen)});
         }
     }
-    auto uniformPrepEnd = chrono::high_resolution_clock::now();
-    auto uniformPrepDuration = chrono::duration_cast<chrono::seconds>(uniformPrepEnd - uniformPrepStart);
-    cout << "  - Bounding boxes computed in " << uniformPrepDuration.count() << " seconds" << endl << endl;
+    return points;
+}
+
+int main() {
+    cout << "========================================\n";
+    cout << "  POINT-IN-POLYGON BASELINE BENCHMARK\n";
+    cout << "  Task 9: Performance Measurement\n";
+    cout << "========================================\n\n";
     
-    cout << "[PHASE 3A] Executing Classification Pipeline (Uniform)..." << endl;
+    // ===== PHASE 0: Setup =====
+    cout << "[PHASE 0] Setup - Generating In-Memory Test Data...\n";
+    
+    // Load polygons
+    cout << "  - Loading polygons from 'data/polygons.txt'...\n";
+    vector<Polygon> polygons = loadPolygons("data/polygons.txt");
+    cout << "    > Loaded " << polygons.size() << " polygons\n";
+    
+    // Generate points in memory
+    cout << "  - Generating 250,000,000 uniform points in memory...  ";
+    cout.flush();
+    vector<Point> queryPointsUniform = generateUniformPointsInMemory(250000000, 0, 100, 0, 100);
+    cout << "DONE\n";
+    
+    cout << "  - Generating 250,000,000 clustered points in memory... ";
+    cout.flush();
+    vector<Point> queryPointsClustered = generateClusteredPointsInMemory(250000000, 0, 100, 0, 100);
+    cout << "DONE\n\n";
+    
+    // ===== PHASE 1: Compute Bounding Boxes =====
+    cout << "[PHASE 1] Computing Bounding Boxes for Polygons...\n";
+    auto phase1Start = chrono::high_resolution_clock::now();
+    for (auto& poly : polygons) {
+        assignBoundingBox(poly);
+    }
+    auto phase1End = chrono::high_resolution_clock::now();
+    auto phase1Duration = chrono::duration_cast<chrono::seconds>(phase1End - phase1Start);
+    cout << "  - Computed bounding boxes in " << phase1Duration.count() << " seconds\n\n";
+    
+    // ===== PHASE 2: Build Spatial Index =====
+    cout << "[PHASE 2] Building Spatial Index (Quadtree)...\n";
+    auto phase2Start = chrono::high_resolution_clock::now();
+    BoundingBox worldBounds = computeWorldBoundingBox(polygons);
+    Quadtree spatialIndex(worldBounds);
+    for (int i = 0; i < (int)polygons.size(); i++) {
+        spatialIndex.insert(i, polygons[i].bbox);
+    }
+    auto phase2End = chrono::high_resolution_clock::now();
+    auto phase2Duration = chrono::duration_cast<chrono::seconds>(phase2End - phase2Start);
+    cout << "  - Built spatial index in " << phase2Duration.count() << " seconds\n\n";
+    
+    // ===== PHASE 3A: Classify Uniform Points =====
+    cout << "========================================================================\n";
+    cout << "           TEST 1: UNIFORM POINT DISTRIBUTION\n";
+    cout << "========================================================================\n\n";
+    
+    cout << "[PHASE 3A] Executing Classification Pipeline (Uniform)...\n";
     auto uniformClassifyStart = chrono::high_resolution_clock::now();
-    vector<int> resultsUniform = classifyPoints(polygons, queryPointsUniform);
+    vector<int> resultsUniform = classifyPoints(polygons, spatialIndex, queryPointsUniform);
     auto uniformClassifyEnd = chrono::high_resolution_clock::now();
     auto uniformClassifyDuration = chrono::duration_cast<chrono::seconds>(uniformClassifyEnd - uniformClassifyStart);
-    cout << "  - Classification completed in " << uniformClassifyDuration.count() << " seconds" << endl << endl;
+    cout << "  - Classification completed in " << uniformClassifyDuration.count() << " seconds\n\n";
     
     // Analyze uniform results
     int uniformPointsInside = 0, uniformPointsOutside = 0;
@@ -78,41 +121,22 @@ int main() {
     
     cout << "  - Points Inside Polygons: " << uniformPointsInside 
          << " (" << fixed << setprecision(2) 
-         << (100.0 * uniformPointsInside / queryPointsUniform.size()) << "%)" << endl;
+         << (100.0 * uniformPointsInside / queryPointsUniform.size()) << "%)\n";
     cout << "  - Points Outside Polygons: " << uniformPointsOutside 
          << " (" << fixed << setprecision(2) 
-         << (100.0 * uniformPointsOutside / queryPointsUniform.size()) << "%)" << endl << endl;
+         << (100.0 * uniformPointsOutside / queryPointsUniform.size()) << "%)\n\n";
     
-    cout << "========================================================================" << endl;
-    cout << "           TEST 2: CLUSTERED POINT DISTRIBUTION" << endl;
-    cout << "========================================================================" << endl << endl;
+    // ===== PHASE 3B: Classify Clustered Points =====
+    cout << "========================================================================\n";
+    cout << "           TEST 2: CLUSTERED POINT DISTRIBUTION\n";
+    cout << "========================================================================\n\n";
     
-    cout << "[PHASE 1B] Loading Clustered Points..." << endl;
-    auto clusteredLoadStart = chrono::high_resolution_clock::now();
-    vector<Point> queryPointsClustered = loadPoints("data/points_clustered.txt");
-    auto clusteredLoadEnd = chrono::high_resolution_clock::now();
-    auto clusteredLoadDuration = chrono::duration_cast<chrono::seconds>(clusteredLoadEnd - clusteredLoadStart);
-    cout << "  - Loaded " << queryPointsClustered.size() << " clustered points in " 
-         << clusteredLoadDuration.count() << " seconds" << endl << endl;
-    
-    cout << "[PHASE 2B] Preprocessing (Computing Bounding Boxes)..." << endl;
-    auto clusteredPrepStart = chrono::high_resolution_clock::now();
-    for (auto& poly : polygons) {
-        if (poly.bbox.min_x == 0 && poly.bbox.max_x == 0 &&
-            poly.bbox.min_y == 0 && poly.bbox.max_y == 0) {
-            assignBoundingBox(poly);
-        }
-    }
-    auto clusteredPrepEnd = chrono::high_resolution_clock::now();
-    auto clusteredPrepDuration = chrono::duration_cast<chrono::seconds>(clusteredPrepEnd - clusteredPrepStart);
-    cout << "  - Bounding boxes computed in " << clusteredPrepDuration.count() << " seconds" << endl << endl;
-    
-    cout << "[PHASE 3B] Executing Classification Pipeline (Clustered)..." << endl;
+    cout << "[PHASE 3B] Executing Classification Pipeline (Clustered)...\n";
     auto clusteredClassifyStart = chrono::high_resolution_clock::now();
-    vector<int> resultsClustered = classifyPoints(polygons, queryPointsClustered);
+    vector<int> resultsClustered = classifyPoints(polygons, spatialIndex, queryPointsClustered);
     auto clusteredClassifyEnd = chrono::high_resolution_clock::now();
     auto clusteredClassifyDuration = chrono::duration_cast<chrono::seconds>(clusteredClassifyEnd - clusteredClassifyStart);
-    cout << "  - Classification completed in " << clusteredClassifyDuration.count() << " seconds" << endl << endl;
+    cout << "  - Classification completed in " << clusteredClassifyDuration.count() << " seconds\n\n";
     
     // Analyze clustered results
     int clusteredPointsInside = 0, clusteredPointsOutside = 0;
@@ -123,90 +147,53 @@ int main() {
     
     cout << "  - Points Inside Polygons: " << clusteredPointsInside 
          << " (" << fixed << setprecision(2) 
-         << (100.0 * clusteredPointsInside / queryPointsClustered.size()) << "%)" << endl;
+         << (100.0 * clusteredPointsInside / queryPointsClustered.size()) << "%)\n";
     cout << "  - Points Outside Polygons: " << clusteredPointsOutside 
          << " (" << fixed << setprecision(2) 
-         << (100.0 * clusteredPointsOutside / queryPointsClustered.size()) << "%)" << endl << endl;
+         << (100.0 * clusteredPointsOutside / queryPointsClustered.size()) << "%)\n\n";
     
-    cout << endl;
-//     This was just for checkin - can be removed now. Keeping it here for consistency with output screenshots
-//     cout << "========================================================================" << endl;
-//     cout << "    TASK 9: BASELINE PERFORMANCE MEASUREMENT" << endl;
-//     cout << "    (COMPARATIVE ANALYSIS - 3 REQUIRED METRICS)" << endl;
-//     cout << "========================================================================" << endl << endl;
+    // ===== RESULTS SUMMARY =====
+    cout << "\n";
+    cout << "========================================================================\n";
+    cout << "                    REQUIREMENT 1: EXECUTION TIME\n";
+    cout << "========================================================================\n";
+    cout << "  Uniform Distribution Classification:   " << uniformClassifyDuration.count() << " seconds\n";
+    cout << "  Clustered Distribution Classification: " << clusteredClassifyDuration.count() << " seconds\n";
+    cout << "  Total Classification Time:             " << (uniformClassifyDuration.count() + clusteredClassifyDuration.count()) << " seconds\n\n";
     
-    long uniformTotal = uniformLoadDuration.count() + uniformPrepDuration.count() + uniformClassifyDuration.count();
-    long clusteredTotal = clusteredLoadDuration.count() + clusteredPrepDuration.count() + clusteredClassifyDuration.count();
+    cout << "========================================================================\n";
+    cout << "                 REQUIREMENT 2: POINTS PROCESSED\n";
+    cout << "========================================================================\n";
+    cout << "  Uniform Distribution:   " << queryPointsUniform.size() << " points\n";
+    cout << "  Clustered Distribution: " << queryPointsClustered.size() << " points\n";
+    cout << "  Total Points Processed: " << (queryPointsUniform.size() + queryPointsClustered.size()) << " points\n\n";
     
-    cout << "+----------- REQUIREMENT 1: TOTAL EXECUTION TIME (BOTH TESTS) -----+" << endl;
-    cout << "|                                                                   |" << endl;
-    cout << "|  Uniform Distribution Test:                                      |" << endl;
-    cout << "|    * Total Time:         " << setw(4) << uniformTotal << " seconds              |" << endl;
-    cout << "|    * File Loading:       " << setw(4) << uniformLoadDuration.count() << " seconds              |" << endl;
-    cout << "|    * Preprocessing:      " << setw(4) << uniformPrepDuration.count() << " seconds              |" << endl;
-    cout << "|    * Classification:     " << setw(4) << uniformClassifyDuration.count() << " seconds              |" << endl;
-    cout << "|                                                                   |" << endl;
-    cout << "|  Clustered Distribution Test:                                    |" << endl;
-    cout << "|    * Total Time:         " << setw(4) << clusteredTotal << " seconds              |" << endl;
-    cout << "|    * File Loading:       " << setw(4) << clusteredLoadDuration.count() << " seconds              |" << endl;
-    cout << "|    * Preprocessing:      " << setw(4) << clusteredPrepDuration.count() << " seconds              |" << endl;
-    cout << "|    * Classification:     " << setw(4) << clusteredClassifyDuration.count() << " seconds              |" << endl;
-    cout << "|                                                                   |" << endl;
-    cout << "+---------------------------------------------------------------+" << endl << endl;
+    cout << "========================================================================\n";
+    cout << "               REQUIREMENT 3: SYSTEM OBSERVATIONS\n";
+    cout << "========================================================================\n";
+    cout << "  [✓] Algorithm Optimizations:\n";
+    cout << "      - Quadtree O(log N) traversal (single quadrant per level)\n";
+    cout << "      - Spatial index built once, reused for all classifications\n";
+    cout << "      - Two-stage pipeline: spatial filter → ray casting\n";
+    cout << "      - Redundant bounding box check removed\n\n";
     
-    cout << "+----------- REQUIREMENT 2: NUMBER OF POINTS PROCESSED (BOTH) ------+" << endl;
-    cout << "|                                                                   |" << endl;
-    cout << "|  Uniform Distribution Test:                                      |" << endl;
-    cout << "|    * Total Points:       " << setw(4) << queryPointsUniform.size() << " points          |" << endl;
-    cout << "|    * Points Inside:      " << setw(4) << uniformPointsInside << " (" << fixed << setprecision(1) 
-         << setw(5) << (100.0 * uniformPointsInside / queryPointsUniform.size()) << "%)       |" << endl;
-    cout << "|    * Points Outside:     " << setw(4) << uniformPointsOutside << " (" << fixed << setprecision(1) 
-         << setw(5) << (100.0 * uniformPointsOutside / queryPointsUniform.size()) << "%)       |" << endl;
-    cout << "|                                                                   |" << endl;
-    cout << "|  Clustered Distribution Test:                                    |" << endl;
-    cout << "|    * Total Points:       " << setw(4) << queryPointsClustered.size() << " points          |" << endl;
-    cout << "|    * Points Inside:      " << setw(4) << clusteredPointsInside << " (" << fixed << setprecision(1) 
-         << setw(5) << (100.0 * clusteredPointsInside / queryPointsClustered.size()) << "%)       |" << endl;
-    cout << "|    * Points Outside:     " << setw(4) << clusteredPointsOutside << " (" << fixed << setprecision(1) 
-         << setw(5) << (100.0 * clusteredPointsOutside / queryPointsClustered.size()) << "%)       |" << endl;
-    cout << "|                                                                   |" << endl;
-    cout << "+---------------------------------------------------------------+" << endl << endl;
+    cout << "  [✓] Benchmarking Methodology:\n";
+    cout << "      - Points generated in-memory (no file I/O)\n";
+    cout << "      - Timer starts after data preparation\n";
+    cout << "      - Measures only point-in-polygon classification performance\n";
+    cout << "      - Reproducible with fixed RNG seed (42)\n\n";
     
-    cout << "+----------- REQUIREMENT 3: OBSERVATIONS ON SYSTEM BEHAVIOUR ------+" << endl;
-    cout << "|                                                                   |" << endl;
-    cout << "|  [OK] Spatial Index Efficiency:                                  |" << endl;
-    cout << "|    Quadtree reduced search from " << setw(2) << polygons.size() << " polygons to O(log N)     |" << endl;
-    cout << "|    Both distributions benefit equally from indexing              |" << endl;
-    cout << "|                                                                   |" << endl;
-    cout << "|  [OK] Distribution Impact Analysis:                              |" << endl;
-    if (uniformClassifyDuration.count() > 0 && clusteredClassifyDuration.count() > 0) {
-        double uniformThroughput = queryPointsUniform.size() / (double)uniformClassifyDuration.count();
-        double clusteredThroughput = queryPointsClustered.size() / (double)clusteredClassifyDuration.count();
-        cout << "|    Uniform Throughput:   " << fixed << setprecision(0) 
-             << setw(10) << uniformThroughput << " pts/sec          |" << endl;
-        cout << "|    Clustered Throughput: " << fixed << setprecision(0) 
-             << setw(10) << clusteredThroughput << " pts/sec          |" << endl;
-        cout << "|    Time Difference: " << fixed << setprecision(1) 
-             << abs((uniformClassifyDuration.count() - clusteredClassifyDuration.count())) << " seconds              |" << endl;
-    }
-    cout << "|                                                                   |" << endl;
-    cout << "|  [OK] Pipeline Effectiveness:                                    |" << endl;
-    cout << "|    All 3 stages working: Spatial -> BBox -> RayCast              |" << endl;
-    cout << "|    Dual-distribution testing validates robustness                |" << endl;
-    cout << "|                                                                   |" << endl;
-    cout << "|  [OK] Memory Stability:                                          |" << endl;
-    cout << "|    300M+ points processed without errors [OK]                    |" << endl;
-    cout << "|    Program completed successfully with both distributions        |" << endl;
-    cout << "|                                                                   |" << endl;
-    cout << "|  [OK] Integration Status:                                        |" << endl;
-    cout << "|    All components (Tasks 1-7) integrated successfully [OK]       |" << endl;
-    cout << "|    Using actual Task 2/8 generated test files [OK]               |" << endl;
-    cout << "|                                                                   |" << endl;
-    cout << "+---------------------------------------------------------------+" << endl << endl;
+    cout << "  [✓] Performance Characteristics:\n";
+    cout << "      - Processing " << (queryPointsUniform.size() + queryPointsClustered.size()) / 1e6 << "M points\n";
+    cout << "      - Throughput: " << fixed << setprecision(1) 
+         << ((queryPointsUniform.size() + queryPointsClustered.size()) / 1e6) / (uniformClassifyDuration.count() + clusteredClassifyDuration.count()) 
+         << " M points/second\n";
+    cout << "      - In-memory generation avoids I/O bottleneck\n";
+    cout << "      - Ready for parallelization in Milestone 2\n\n";
     
-    cout << "=====================================" << endl;
-    cout << "  BASELINE MEASUREMENT COMPLETE" << endl;
-    cout << "=====================================" << endl;
+    cout << "========================================================================\n";
+    cout << "              BASELINE MEASUREMENT COMPLETE\n";
+    cout << "========================================================================\n";
     
     return 0;
 }

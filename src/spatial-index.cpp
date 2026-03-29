@@ -95,6 +95,7 @@ void Quadtree::insert(QuadNode* node, int polygonIndex, const BoundingBox& box) 
 void Quadtree::query(QuadNode* node, const Point& pt, vector<int>& result) const {
     if (!node || !boxContainsPoint(node->region, pt)) return;
 
+    // Check all entries at this node level
     for (const Entry& e : node->entries) {
         if (boxContainsPoint(e.box, pt)) {
             result.push_back(e.polygonIndex);
@@ -103,10 +104,20 @@ void Quadtree::query(QuadNode* node, const Point& pt, vector<int>& result) const
 
     if (!node->divided) return;
 
-    query(node->nw.get(), pt, result);
-    query(node->ne.get(), pt, result);
-    query(node->sw.get(), pt, result);
-    query(node->se.get(), pt, result);
+    // Only query the single child quadrant that contains the point
+    // This is the key optimization: O(log N) instead of checking all 4 children
+    double mid_x = (node->region.min_x + node->region.max_x) / 2.0;
+    double mid_y = (node->region.min_y + node->region.max_y) / 2.0;
+
+    if (pt.x < mid_x && pt.y >= mid_y) {
+        query(node->nw.get(), pt, result);
+    } else if (pt.x >= mid_x && pt.y >= mid_y) {
+        query(node->ne.get(), pt, result);
+    } else if (pt.x < mid_x && pt.y < mid_y) {
+        query(node->sw.get(), pt, result);
+    } else {
+        query(node->se.get(), pt, result);
+    }
 }
 
 Quadtree::Quadtree(const BoundingBox& world, int cap, int maxD)
