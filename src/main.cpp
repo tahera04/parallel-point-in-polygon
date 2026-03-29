@@ -105,7 +105,7 @@ cout << "=======================================================================
 
 cout << "[PHASE 3A] Executing Classification Pipeline (Uniform)...\n";
 
-long totalPointsUniform = 500000000;
+long totalPointsUniform = 750000000;
 long batchSize = 1000000;
 
 auto uniformClassifyStart = chrono::high_resolution_clock::now();
@@ -149,7 +149,7 @@ cout << "=======================================================================
 
 cout << "[PHASE 3B] Executing Classification Pipeline (Clustered)...\n";
 
-long totalPointsClustered = 500000000;
+long totalPointsClustered = 750000000;
 long processedClustered = 0;
 
 auto clusteredClassifyStart = chrono::high_resolution_clock::now();
