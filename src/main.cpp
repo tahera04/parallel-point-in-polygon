@@ -70,12 +70,10 @@ int main() {
     // Generate points in memory
     cout << "  - Generating 250,000,000 uniform points in memory...  ";
     cout.flush();
-    vector<Point> queryPointsUniform = generateUniformPointsInMemory(250000000, 0, 100, 0, 100);
     cout << "DONE\n";
     
     cout << "  - Generating 250,000,000 clustered points in memory... ";
     cout.flush();
-    vector<Point> queryPointsClustered = generateClusteredPointsInMemory(250000000, 0, 100, 0, 100);
     cout << "DONE\n\n";
     
     // ===== PHASE 1: Compute Bounding Boxes =====
@@ -101,56 +99,91 @@ int main() {
     cout << "  - Built spatial index in " << phase2Duration.count() << " seconds\n\n";
     
     // ===== PHASE 3A: Classify Uniform Points =====
-    cout << "========================================================================\n";
-    cout << "           TEST 1: UNIFORM POINT DISTRIBUTION\n";
-    cout << "========================================================================\n\n";
-    
-    cout << "[PHASE 3A] Executing Classification Pipeline (Uniform)...\n";
-    auto uniformClassifyStart = chrono::high_resolution_clock::now();
-    vector<int> resultsUniform = classifyPoints(polygons, spatialIndex, queryPointsUniform);
-    auto uniformClassifyEnd = chrono::high_resolution_clock::now();
-    auto uniformClassifyDuration = chrono::duration_cast<chrono::seconds>(uniformClassifyEnd - uniformClassifyStart);
-    cout << "  - Classification completed in " << uniformClassifyDuration.count() << " seconds\n\n";
-    
-    // Analyze uniform results
-    int uniformPointsInside = 0, uniformPointsOutside = 0;
-    for (int result : resultsUniform) {
+cout << "========================================================================\n";
+cout << "           TEST 1: UNIFORM POINT DISTRIBUTION\n";
+cout << "========================================================================\n\n";
+
+cout << "[PHASE 3A] Executing Classification Pipeline (Uniform)...\n";
+
+long totalPointsUniform = 500000000;
+long batchSize = 1000000;
+
+auto uniformClassifyStart = chrono::high_resolution_clock::now();
+
+long uniformPointsInside = 0, uniformPointsOutside = 0;
+long processedUniform = 0;
+
+while (processedUniform < totalPointsUniform) {
+    long currentBatch = min(batchSize, totalPointsUniform - processedUniform);
+
+    vector<Point> batch = generateUniformPointsInMemory(currentBatch, 0, 100, 0, 100);
+
+    vector<int> results = classifyPoints(polygons, spatialIndex, batch);
+
+    for (int result : results) {
         if (result == -1) uniformPointsOutside++;
         else uniformPointsInside++;
     }
-    
-    cout << "  - Points Inside Polygons: " << uniformPointsInside 
-         << " (" << fixed << setprecision(2) 
-         << (100.0 * uniformPointsInside / queryPointsUniform.size()) << "%)\n";
-    cout << "  - Points Outside Polygons: " << uniformPointsOutside 
-         << " (" << fixed << setprecision(2) 
-         << (100.0 * uniformPointsOutside / queryPointsUniform.size()) << "%)\n\n";
+
+    processedUniform += currentBatch;
+}
+
+auto uniformClassifyEnd = chrono::high_resolution_clock::now();
+auto uniformClassifyDuration = chrono::duration_cast<chrono::seconds>(uniformClassifyEnd - uniformClassifyStart);
+
+cout << "  - Classification completed in " << uniformClassifyDuration.count() << " seconds\n\n";
+
+// Output (FIXED)
+cout << "  - Points Inside Polygons: " << uniformPointsInside 
+     << " (" << fixed << setprecision(2) 
+     << (100.0 * uniformPointsInside / totalPointsUniform) << "%)\n";
+
+cout << "  - Points Outside Polygons: " << uniformPointsOutside 
+     << " (" << fixed << setprecision(2) 
+     << (100.0 * uniformPointsOutside / totalPointsUniform) << "%)\n\n";
     
     // ===== PHASE 3B: Classify Clustered Points =====
-    cout << "========================================================================\n";
-    cout << "           TEST 2: CLUSTERED POINT DISTRIBUTION\n";
-    cout << "========================================================================\n\n";
-    
-    cout << "[PHASE 3B] Executing Classification Pipeline (Clustered)...\n";
-    auto clusteredClassifyStart = chrono::high_resolution_clock::now();
-    vector<int> resultsClustered = classifyPoints(polygons, spatialIndex, queryPointsClustered);
-    auto clusteredClassifyEnd = chrono::high_resolution_clock::now();
-    auto clusteredClassifyDuration = chrono::duration_cast<chrono::seconds>(clusteredClassifyEnd - clusteredClassifyStart);
-    cout << "  - Classification completed in " << clusteredClassifyDuration.count() << " seconds\n\n";
-    
-    // Analyze clustered results
-    int clusteredPointsInside = 0, clusteredPointsOutside = 0;
-    for (int result : resultsClustered) {
+cout << "========================================================================\n";
+cout << "           TEST 2: CLUSTERED POINT DISTRIBUTION\n";
+cout << "========================================================================\n\n";
+
+cout << "[PHASE 3B] Executing Classification Pipeline (Clustered)...\n";
+
+long totalPointsClustered = 500000000;
+long processedClustered = 0;
+
+auto clusteredClassifyStart = chrono::high_resolution_clock::now();
+
+long clusteredPointsInside = 0, clusteredPointsOutside = 0;
+
+while (processedClustered < totalPointsClustered) {
+    long currentBatch = min(batchSize, totalPointsClustered - processedClustered);
+
+    vector<Point> batch = generateClusteredPointsInMemory(currentBatch, 0, 100, 0, 100);
+
+    vector<int> results = classifyPoints(polygons, spatialIndex, batch);
+
+    for (int result : results) {
         if (result == -1) clusteredPointsOutside++;
         else clusteredPointsInside++;
     }
-    
-    cout << "  - Points Inside Polygons: " << clusteredPointsInside 
-         << " (" << fixed << setprecision(2) 
-         << (100.0 * clusteredPointsInside / queryPointsClustered.size()) << "%)\n";
-    cout << "  - Points Outside Polygons: " << clusteredPointsOutside 
-         << " (" << fixed << setprecision(2) 
-         << (100.0 * clusteredPointsOutside / queryPointsClustered.size()) << "%)\n\n";
+
+    processedClustered += currentBatch;
+}
+
+auto clusteredClassifyEnd = chrono::high_resolution_clock::now();
+auto clusteredClassifyDuration = chrono::duration_cast<chrono::seconds>(clusteredClassifyEnd - clusteredClassifyStart);
+
+cout << "  - Classification completed in " << clusteredClassifyDuration.count() << " seconds\n\n";
+
+// Output (FIXED)
+cout << "  - Points Inside Polygons: " << clusteredPointsInside 
+     << " (" << fixed << setprecision(2) 
+     << (100.0 * clusteredPointsInside / totalPointsClustered) << "%)\n";
+
+cout << "  - Points Outside Polygons: " << clusteredPointsOutside 
+     << " (" << fixed << setprecision(2) 
+     << (100.0 * clusteredPointsOutside / totalPointsClustered) << "%)\n\n";
     
     // ===== RESULTS SUMMARY =====
     cout << "\n";
@@ -164,9 +197,9 @@ int main() {
     cout << "========================================================================\n";
     cout << "                 REQUIREMENT 2: POINTS PROCESSED\n";
     cout << "========================================================================\n";
-    cout << "  Uniform Distribution:   " << queryPointsUniform.size() << " points\n";
-    cout << "  Clustered Distribution: " << queryPointsClustered.size() << " points\n";
-    cout << "  Total Points Processed: " << (queryPointsUniform.size() + queryPointsClustered.size()) << " points\n\n";
+    cout << "  Uniform Distribution:   " << totalPointsUniform << " points\n";
+    cout << "  Clustered Distribution: " << totalPointsClustered << " points\n";
+    cout << "  Total Points Processed: " << (totalPointsUniform + totalPointsClustered) << " points\n\n";
     
     cout << "========================================================================\n";
     cout << "               REQUIREMENT 3: SYSTEM OBSERVATIONS\n";
@@ -184,9 +217,9 @@ int main() {
     cout << "      - Reproducible with fixed RNG seed (42)\n\n";
     
     cout << "  [✓] Performance Characteristics:\n";
-    cout << "      - Processing " << (queryPointsUniform.size() + queryPointsClustered.size()) / 1e6 << "M points\n";
+    cout << "      - Processing " << (totalPointsUniform + totalPointsClustered) / 1e6 << "M points\n";
     cout << "      - Throughput: " << fixed << setprecision(1) 
-         << ((queryPointsUniform.size() + queryPointsClustered.size()) / 1e6) / (uniformClassifyDuration.count() + clusteredClassifyDuration.count()) 
+         << ((totalPointsUniform + totalPointsClustered) / 1e6) / (uniformClassifyDuration.count() + clusteredClassifyDuration.count()) 
          << " M points/second\n";
     cout << "      - In-memory generation avoids I/O bottleneck\n";
     cout << "      - Ready for parallelization in Milestone 2\n\n";
