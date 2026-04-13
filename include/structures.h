@@ -23,4 +23,9 @@ struct Polygon {
     BoundingBox bbox;
 };
 
+struct MultiPolygon {
+    int id;
+    vector<Polygon> parts;
+};
+
 #endif
