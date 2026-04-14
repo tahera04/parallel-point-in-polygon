@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdlib>
 #include "../include/structures.h"
+#include <iomanip>
 
 using namespace std;
 
@@ -105,35 +106,31 @@ void generateComplexPolygons(int numPolygons, const string& filename) {
     int id = 1;
 
     for (int i = 0; i < numPolygons; i++) {
-        // Random center
-        double cx = randFloat(10000, mapSize - 10000);
-        double cy = randFloat(10000, mapSize - 10000);
+        double cx = randFloat(450000, 550000);
+        double cy = randFloat(450000, 550000);
+        double radius = randFloat(15000.0, 40000.0);
 
-        // Random radius between 500 and 5000
-        double radius = randFloat(500.0, 5000.0);
+        // 500 to 1000 vertices with high noise - very complex boundary
+        int outerVertices = 1500 + rand() % 1500;
+        vector<Point> outer = generateComplexRing(cx, cy, radius, outerVertices, 0.45);
 
-        // Complex outer boundary: 100 to 300 vertices with high noise
-        int outerVertices = 100 + rand() % 200;
-        vector<Point> outer = generateComplexRing(cx, cy, radius, outerVertices, 0.35);
-
-        // 3 to 7 holes per polygon
-        int numHoles = 3 + rand() % 5;
+        // 8 to 15 holes per polygon
+        int numHoles = 8 + rand() % 8;
         vector<vector<Point>> holes;
 
         for (int h = 0; h < numHoles; h++) {
-            // Hole center offset from polygon center
-            double hcx = cx + randFloat(-radius * 0.4, radius * 0.4);
-            double hcy = cy + randFloat(-radius * 0.4, radius * 0.4);
-            double hRadius = radius * randFloat(0.05, 0.12);
+            double hcx = cx + randFloat(-radius * 0.5, radius * 0.5);
+            double hcy = cy + randFloat(-radius * 0.5, radius * 0.5);
+            double hRadius = radius * randFloat(0.03, 0.08);
 
-            // Each hole has 50 to 150 vertices
-            int holeVertices = 50 + rand() % 100;
-            vector<Point> hole = generateComplexRing(hcx, hcy, hRadius, holeVertices, 0.25);
+            // 200 to 400 vertices per hole
+            int holeVertices = 500 + rand() % 500;
+            vector<Point> hole = generateComplexRing(hcx, hcy, hRadius, holeVertices, 0.3);
             holes.push_back(hole);
         }
 
-        // Write polygon to file
         file << id << " " << outerVertices << " " << numHoles << "\n";
+        file << fixed << setprecision(8);
         for (auto& p : outer) {
             file << p.x << " " << p.y << "\n";
         }
@@ -155,6 +152,7 @@ void generateComplexPolygons(int numPolygons, const string& filename) {
     cout << "\nDone! Written to " << filename << endl;
 }
 
+
 // ==================== MULTI-POLYGON GENERATION ====================
 
 void generateMultiPolygons(int numMultiPolygons, const string& filename) {
@@ -165,40 +163,41 @@ void generateMultiPolygons(int numMultiPolygons, const string& filename) {
         return;
     }
 
-    cout << "Generating " << numMultiPolygons << " multi-polygons..." << endl;
+    cout << "Generating " << numMultiPolygons << " complex multi-polygons..." << endl;
 
     double mapSize = 1000000.0;
     int id = 1;
 
     for (int i = 0; i < numMultiPolygons; i++) {
-        // Each multi-polygon has 3 to 6 parts
-        int numParts = 3 + rand() % 4;
+        // 5 to 8 parts per multi-polygon
+        int numParts = 5 + rand() % 4;
 
         file << "MULTI " << id << " " << numParts << "\n";
 
         for (int part = 0; part < numParts; part++) {
             double cx = randFloat(10000, mapSize - 10000);
             double cy = randFloat(10000, mapSize - 10000);
-            double radius = randFloat(300.0, 3000.0);
+            double radius = randFloat(1000.0, 5000.0);
 
-            // 80 to 200 vertices per part
-            int outerVertices = 80 + rand() % 120;
-            vector<Point> outer = generateComplexRing(cx, cy, radius, outerVertices, 0.3);
+            // 400 to 800 vertices per part
+            int outerVertices = 400 + rand() % 400;
+            vector<Point> outer = generateComplexRing(cx, cy, radius, outerVertices, 0.4);
 
-            // 2 to 4 holes per part
-            int numHoles = 2 + rand() % 3;
+            // 6 to 10 holes per part
+            int numHoles = 6 + rand() % 5;
             vector<vector<Point>> holes;
 
             for (int h = 0; h < numHoles; h++) {
-                double hcx = cx + randFloat(-radius * 0.35, radius * 0.35);
-                double hcy = cy + randFloat(-radius * 0.35, radius * 0.35);
-                double hRadius = radius * randFloat(0.04, 0.10);
-                int holeVertices = 40 + rand() % 80;
-                vector<Point> hole = generateComplexRing(hcx, hcy, hRadius, holeVertices, 0.2);
+                double hcx = cx + randFloat(-radius * 0.4, radius * 0.4);
+                double hcy = cy + randFloat(-radius * 0.4, radius * 0.4);
+                double hRadius = radius * randFloat(0.03, 0.07);
+                int holeVertices = 150 + rand() % 150;
+                vector<Point> hole = generateComplexRing(hcx, hcy, hRadius, holeVertices, 0.25);
                 holes.push_back(hole);
             }
 
             file << outerVertices << " " << numHoles << "\n";
+            file << fixed << setprecision(8);
             for (auto& p : outer) {
                 file << p.x << " " << p.y << "\n";
             }
@@ -250,19 +249,15 @@ void generateClusteredPoints(int count, const string& filename) {
         return;
     }
 
-    // 10 cluster centers spread across map
-    double centersX[] = {100000, 300000, 500000, 700000, 900000,
-                         200000, 400000, 600000, 800000, 150000};
-    double centersY[] = {100000, 400000, 200000, 500000, 300000,
-                         700000, 900000, 600000, 800000, 500000};
-    int numClusters = 10;
+    // cluster points
+    double centerX = 500000;
+    double centerY = 500000;
 
     for (int i = 0; i < count; i++) {
-        int c = rand() % numClusters;
-        double x = centersX[c] + randFloat(-20000, 20000);
-        double y = centersY[c] + randFloat(-20000, 20000);
+        double x = centerX + randFloat(-30000, 30000);
+        double y = centerY + randFloat(-30000, 30000);
         file << x << " " << y << "\n";
-    }
+}
 
     file.close();
     cout << "Generated " << count << " clustered points to " << filename << endl;

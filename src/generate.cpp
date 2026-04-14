@@ -8,13 +8,14 @@ int main() {
     srand(42);
 
     cout << "=== Generating Complex Polygons ===" << endl;
-    generateComplexPolygons(50000, "data/polygons.txt");
+    generateComplexPolygons(200000, "data/polygons.txt");
 
     cout << "=== Generating Multi-Polygons ===" << endl;
-    generateMultiPolygons(10000, "data/multipolygons.txt");
+    generateMultiPolygons(20000, "data/multipolygons.txt");
 
     cout << "=== Generating Point Datasets ===" << endl;
-    generateMultipleSizes("data");
+    generateUniformPoints(50000000, 0, 1000000, 0, 1000000, "data/points_uniform.txt");
+    generateClusteredPoints(50000000, "data/points_clustered.txt");
 
     cout << "=== Generating Test Cases ===" << endl;
     generateTestCases("data/testcases.txt");
