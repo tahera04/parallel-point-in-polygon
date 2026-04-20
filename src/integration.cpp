@@ -2,6 +2,7 @@
 #include "../include/spatial-index.h"
 #include "../include/bounding-box.h"
 #include <iostream>
+#include <omp.h>
 
 using namespace std;
 
@@ -42,5 +43,43 @@ vector<int> classifyPoints(vector<Polygon>& polygons, const Quadtree& spatialInd
         results.push_back(foundPolygonID);
     }
     
+    return results;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Milestone 2 - Task 1: Parallel Point Processing
+// Parallelizes the classification loop using OpenMP.
+//
+// Thread safety:
+//   - results[] is pre-allocated; each thread writes to its own unique index.
+//   - spatialIndex.query() is const; each call allocates its own local vector.
+//   - isPointInsidePolygon() only reads polygon data (no writes).
+//   - polygons vector is never modified during classification.
+//
+// Compile: g++ -fopenmp ...  (GCC/MinGW)
+//          cl /openmp ...    (MSVC)
+// ─────────────────────────────────────────────────────────────────────────────
+vector<int> classifyPointsParallel(vector<Polygon>& polygons, const Quadtree& spatialIndex, const vector<Point>& queryPoints) {
+    int n = (int)queryPoints.size();
+    vector<int> results(n, -1);  // Pre-allocate; each thread writes to unique index
+
+    #pragma omp parallel for schedule(dynamic, 1024)
+    for (int i = 0; i < n; i++) {
+        int foundPolygonID = -1;
+
+        // STAGE 1: Spatial Index Query (thread-local: returns new vector each call)
+        vector<int> candidates = spatialIndex.query(queryPoints[i]);
+
+        // STAGE 2: Ray Casting on candidates only
+        for (int candidateIndex : candidates) {
+            if (isPointInsidePolygon(queryPoints[i], polygons[candidateIndex])) {
+                foundPolygonID = polygons[candidateIndex].id;
+                break;
+            }
+        }
+
+        results[i] = foundPolygonID;  // Safe: unique index per thread
+    }
+
     return results;
 }

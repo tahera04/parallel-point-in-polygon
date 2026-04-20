@@ -15,4 +15,8 @@ using namespace std;
 
 vector<int> classifyPoints(vector<Polygon>& polygons, const Quadtree& spatialIndex, const vector<Point>& queryPoints);
 
+// Parallel version using OpenMP - identical output, parallel execution
+// Requires compilation with -fopenmp (GCC/MinGW) or /openmp (MSVC)
+vector<int> classifyPointsParallel(vector<Polygon>& polygons, const Quadtree& spatialIndex, const vector<Point>& queryPoints);
+
 #endif
