@@ -1,0 +1,221 @@
+==========================================================
+  POINT-IN-POLYGON  |  MILESTONE 2 PARALLEL BENCHMARK
+  Parallel Point Processing using OpenMP
+==========================================================
+
+[INFO] OpenMP max threads : 4
+[INFO] Schedule           : dynamic, chunk = 1024
+
+[PHASE 0] Loading data and building spatial index...
+  - Bounding boxes computed
+  - Quadtree built
+
+[PHASE 1] Output Verification (100K uniform points)...
+  - [PASS] Parallel output matches sequential exactly.
+
+[INFO] Sequential baseline (hardcoded from your Milestone 1 screenshot):
+  - Small  : 1,000,000 uniform + 1,000,000 clustered = 2,000,000 total
+             Time = 30 + 31 = 61 sec
+  - Medium : 50,000,000 uniform + 50,000,000 clustered = 100,000,000 total
+             Time = 2,219 + 1,754 = 3,973 sec
+  - Large  : 100,000,000 uniform + 100,000,000 clustered = 200,000,000 total
+             Time = 2,732 + 2,811 = 5,543 sec
+[INFO] Run mode: FULL (Small+Medium+Large parallel)
+[INFO] Use --full to run full parallel comparison.
+
+============================================================
+  DATASET: Small  (2M points)
+============================================================
+
+[SEQ] Sequential baseline (Milestone 1 stored result):
+  - Uniform   : 30 sec
+  - Clustered : 31 sec
+  - Total     : 61 sec
+
+[PAR] Running parallel classification (4 threads)...
+  - Uniform   : 2.89 sec
+  - Clustered : 2.81 sec
+  - Total     : 5.70 sec
+  - Inside    : 1585666 pts
+  - Outside   : 414334 pts
+
+  >>> Speedup: 10.70x  (seq = 61s,  par = 5.7s)
+
+============================================================
+  DATASET: Medium  (100M points)
+============================================================
+
+[SEQ] Sequential baseline (Milestone 1 stored result):
+  - Uniform   : 2219 sec
+  - Clustered : 1754 sec
+  - Total     : 3973 sec
+
+[PAR] Running parallel classification (4 threads)...
+  - Uniform   : 149.08 sec
+  - Clustered : 154.73 sec
+  - Total     : 303.81 sec
+  - Inside    : 79283300 pts
+  - Outside   : 20716700 pts
+
+  >>> Speedup: 13.08x  (seq = 3973s,  par = 303.8s)
+
+============================================================
+  DATASET: Large  (200M points)
+============================================================
+
+[SEQ] Sequential baseline (Milestone 1 stored result):
+  - Uniform   : 2732 sec
+  - Clustered : 2811 sec
+  - Total     : 5543 sec
+
+[PAR] Running parallel classification (4 threads)...
+  - Uniform   : 314.70 sec
+  - Clustered : 278.02 sec
+  - Total     : 592.72 sec
+  - Inside    : 158566600 pts
+  - Outside   : 41433400 pts
+
+  >>> Speedup: 9.35x  (seq = 5543s,  par = 592.7s)
+
+
+==========================================================================
+           PARALLEL PERFORMANCE SUMMARY  (OpenMP, 4 threads)
+==========================================================================
+Dataset   Points        Seq Time (s)      Par Time (s)      Speedup   
+----------------------------------------------------------------------
+Small     2000000       61*               5s                10.6x     
+Medium    100000000     3973*             303s              13.0x     
+Large     200000000     5543*             592s              9.35x     
+----------------------------------------------------------------------
+TOTAL                   9577*             902.2             10.61     x
+
+  * Sequential time from Milestone 1 stored baseline (not re-run)
+
+==========================================================================
+           DELTA VS SEQUENTIAL BASELINE
+==========================================================================
+Dataset   Seq(s)      Par(s)      Diff(s)       Improve(%)    Speedup   
+------------------------------------------------------------------------
+Small     61.0        5.7         55.3          90.65         10.70     
+Medium    3973.0      303.8       3669.2        92.35         13.08     
+Large     5543.0      592.7       4950.3        89.31         9.35      
+------------------------------------------------------------------------
+
+[✓] Parallel implementation  : OpenMP #pragma omp parallel for
+[✓] Schedule                 : dynamic, chunk size 1024
+[✓] Threads used             : 4
+[✓] Output verified          : 100K points match sequential exactly
+[✓] No race conditions       : unique index per thread, read-only shared data
+[✓] Quadtree                 : read-only during parallel query phase
+==========================================================================
+
+########################################################################
+#     MILESTONE 2 - TASK 2: SPATIAL PARTITIONING STRATEGIES           #
+########################################################################
+
+[M2 SETUP] Generating 2M uniform points...
+[M2 SETUP] Generating 2M clustered points...
+
+--------------------------------------------------------------------
+ [SEQ] Sequential baseline
+--------------------------------------------------------------------
+  Uniform   | 14555.5 ms
+  Clustered | 14377.7 ms
+
+--------------------------------------------------------------------
+ [PAR-BASIC] Strategy 1: Basic OpenMP parallel loop
+--------------------------------------------------------------------
+  2 threads | Uniform 8000.0 ms (x1.82)  |  Clustered 8320.3 ms (x1.73)
+  4 threads | Uniform 5554.0 ms (x2.62)  |  Clustered 5613.4 ms (x2.56)
+
+--------------------------------------------------------------------
+ [PAR-GRID] Strategy 2: Grid-partitioned parallel (4x4 tiles)
+--------------------------------------------------------------------
+  2 threads | Uniform 8404.1 ms (x1.73)  |  Clustered 8881.9 ms (x1.62)
+  4 threads | Uniform 5261.3 ms (x2.77)  |  Clustered 6052.5 ms (x2.38)
+
+--------------------------------------------------------------------
+ [PAR-QUEUE] Strategy 3: Dynamic task queue (batch 4096)
+--------------------------------------------------------------------
+
+[Load Balancer] Dynamic Task Queue Started
+[Load Balancer] Points  : 2000000
+[Load Balancer] Batch   : 4096
+[Load Balancer] Threads : 2
+[Load Balancer] Batches : 489
+
+[Load Balancer] Done
+[Load Balancer] Time    : 8.64 sec
+[Load Balancer] Inside  : 1570746
+[Load Balancer] Outside : 429254
+
+
+[Load Balancer] Dynamic Task Queue Started
+[Load Balancer] Points  : 2000000
+[Load Balancer] Batch   : 4096
+[Load Balancer] Threads : 2
+[Load Balancer] Batches : 489
+
+[Load Balancer] Done
+[Load Balancer] Time    : 8.90 sec
+[Load Balancer] Inside  : 1604345
+[Load Balancer] Outside : 395655
+
+  2 threads | Uniform 8649.0 ms (x1.68)  |  Clustered 8914.7 ms (x1.61)
+
+[Load Balancer] Dynamic Task Queue Started
+[Load Balancer] Points  : 2000000
+[Load Balancer] Batch   : 4096
+[Load Balancer] Threads : 4
+[Load Balancer] Batches : 489
+
+[Load Balancer] Done
+[Load Balancer] Time    : 5.73 sec
+[Load Balancer] Inside  : 1570746
+[Load Balancer] Outside : 429254
+
+
+[Load Balancer] Dynamic Task Queue Started
+[Load Balancer] Points  : 2000000
+[Load Balancer] Batch   : 4096
+[Load Balancer] Threads : 4
+[Load Balancer] Batches : 489
+
+[Load Balancer] Done
+[Load Balancer] Time    : 6.77 sec
+[Load Balancer] Inside  : 1604345
+[Load Balancer] Outside : 395655
+
+  4 threads | Uniform 5739.6 ms (x2.54)  |  Clustered 6788.2 ms (x2.12)
+
+--------------------------------------------------------------------
+ [VERIFY] Correctness: Sequential vs Task2/Task3 (4 threads)
+--------------------------------------------------------------------
+
+[Load Balancer] Dynamic Task Queue Started
+[Load Balancer] Points  : 2000000
+[Load Balancer] Batch   : 4096
+[Load Balancer] Threads : 4
+[Load Balancer] Batches : 489
+
+[Load Balancer] Done
+[Load Balancer] Time    : 5.67 sec
+[Load Balancer] Inside  : 1570746
+[Load Balancer] Outside : 429254
+
+
+[Load Balancer] Dynamic Task Queue Started
+[Load Balancer] Points  : 2000000
+[Load Balancer] Batch   : 4096
+[Load Balancer] Threads : 4
+[Load Balancer] Batches : 489
+
+[Load Balancer] Done
+[Load Balancer] Time    : 6.17 sec
+[Load Balancer] Inside  : 1604345
+[Load Balancer] Outside : 395655
+
+  [PASS] All 2000000 uniform results match.
+  [PASS] All 2000000 clustered results match.
+  [PASS] Dynamic queue uniform results match sequential.
+  [PASS] Dynamic queue clustered results match sequential.

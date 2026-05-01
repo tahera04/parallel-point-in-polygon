@@ -1,0 +1,358 @@
+==========================================================
+  POINT-IN-POLYGON  |  MILESTONE 2 PARALLEL BENCHMARK
+  Parallel Point Processing using OpenMP
+==========================================================
+
+[INFO] OpenMP max threads : 8
+[INFO] Schedule           : dynamic, chunk = 1024
+
+[PHASE 0] Loading data and building spatial index...
+  - Bounding boxes computed
+  - Quadtree built
+
+[PHASE 1] Output Verification (100K uniform points)...
+  - [PASS] Parallel output matches sequential exactly.
+
+[INFO] Sequential baseline (hardcoded from your Milestone 1 screenshot):
+  - Small  : 1,000,000 uniform + 1,000,000 clustered = 2,000,000 total
+             Time = 30 + 31 = 61 sec
+  - Medium : 50,000,000 uniform + 50,000,000 clustered = 100,000,000 total
+             Time = 2,219 + 1,754 = 3,973 sec
+  - Large  : 100,000,000 uniform + 100,000,000 clustered = 200,000,000 total
+             Time = 2,732 + 2,811 = 5,543 sec
+[INFO] Run mode: FULL (Small+Medium+Large parallel)
+[INFO] Use --full to run full parallel comparison.
+
+============================================================
+  DATASET: Small  (2M points)
+============================================================
+
+[SEQ] Sequential baseline (hardcoded from screenshot):
+  - Uniform   : 30 sec
+  - Clustered : 31 sec
+  - Total     : 61 sec
+
+[PAR] Running parallel classification (8 threads)...
+  - Uniform   : 9.88 sec
+  - Clustered : 9.37 sec
+  - Total     : 19.25 sec
+  - Inside    : 1585666 pts
+  - Outside   : 414334 pts
+
+  >>> Speedup: 3.17x  (seq = 61s,  par = 19.3s)
+
+============================================================
+  DATASET: Medium  (100M points)
+============================================================
+
+[SEQ] Sequential baseline (hardcoded from screenshot):
+  - Uniform   : 2219 sec
+  - Clustered : 1754 sec
+  - Total     : 3973 sec
+
+[PAR] Running parallel classification (8 threads)...
+  - Uniform   : 434.88 sec
+  - Clustered : 431.53 sec
+  - Total     : 866.42 sec
+  - Inside    : 79283300 pts
+  - Outside   : 20716700 pts
+
+  >>> Speedup: 4.59x  (seq = 3973s,  par = 866.4s)
+
+============================================================
+  DATASET: Large  (200M points)
+============================================================
+
+[SEQ] Sequential baseline (hardcoded from screenshot):
+  - Uniform   : 2732 sec
+  - Clustered : 2811 sec
+  - Total     : 5543 sec
+
+[PAR] Running parallel classification (8 threads)...
+  - Uniform   : 712.08 sec
+  - Clustered : 745.83 sec
+  - Total     : 1457.91 sec
+  - Inside    : 158566600 pts
+  - Outside   : 41433400 pts
+
+  >>> Speedup: 3.80x  (seq = 5543s,  par = 1457.9s)
+
+
+==========================================================================
+           PARALLEL PERFORMANCE SUMMARY  (OpenMP, 8 threads)
+==========================================================================
+Dataset   Points        Seq Time (s)      Par Time (s)      Speedup
+----------------------------------------------------------------------
+Small     2000000       61*               19s               3.16x
+Medium    100000000     3973*             866s              4.58x     
+Large     200000000     5543*             1457s             3.80x
+----------------------------------------------------------------------
+TOTAL                   9577*             2343.6            4.09      x
+
+  * Sequential time is hardcoded from your screenshot (not re-run)
+
+==========================================================================
+           DELTA VS SEQUENTIAL BASELINE
+==========================================================================
+Dataset   Seq(s)      Par(s)      Diff(s)       Improve(%)    Speedup   
+------------------------------------------------------------------------
+Small     61.0        19.3        41.7          68.44         3.17
+Medium    3973.0      866.4       3106.6        78.19         4.59
+Large     5543.0      1457.9      4085.1        73.70         3.80
+------------------------------------------------------------------------
+
+==========================================================================
+           MILESTONE 1 BASELINE (HARDCODED)
+==========================================================================
+Run       Total Points    Total Time(s) Throughput
+--------------------------------------------------------
+Small     2000000         61            0.033M pts/s
+Medium    100000000       3973          0.025M pts/s
+Large     200000000       5543          0.036M pts/s
+--------------------------------------------------------
+
+[Γ£ô] Parallel implementation  : OpenMP #pragma omp parallel for
+[Γ£ô] Schedule                 : dynamic, chunk size 1024
+[Γ£ô] Threads used             : 8
+[Γ£ô] Output verified          : 100K points match sequential exactly
+[Γ£ô] No race conditions       : unique index per thread, read-only shared data
+[Γ£ô] Quadtree                 : read-only during parallel query phase
+==========================================================================
+
+########################################################################
+#     MILESTONE 2 - TASK 2: SPATIAL PARTITIONING STRATEGIES           #
+########################################################################
+
+[M2 SETUP] Generating 2M uniform points...
+[M2 SETUP] Generating 2M clustered points...
+
+--------------------------------------------------------------------
+ [SEQ] Sequential baseline
+--------------------------------------------------------------------
+  Uniform   | 30.0 sec (Milestone 1 baseline)
+  Clustered | 31.0 sec (Milestone 1 baseline)
+
+--------------------------------------------------------------------
+ [PAR-BASIC] Strategy 1: Basic OpenMP parallel loop
+--------------------------------------------------------------------
+  2 threads | Uniform 18.5 s (x1.62)  |  Clustered 19.9 s (x1.56)
+  4 threads | Uniform 14.2 s (x2.11)  |  Clustered 14.4 s (x2.15)
+  8 threads | Uniform 12.3 s (x2.44)  |  Clustered 12.7 s (x2.45)
+
+--------------------------------------------------------------------
+ [PAR-GRID] Strategy 2: Grid-partitioned parallel (4x4 tiles)
+--------------------------------------------------------------------
+  2 threads | Uniform 19.8 s (x1.51)  |  Clustered 20.2 s (x1.53)
+  4 threads | Uniform 14.3 s (x2.09)  |  Clustered 15.6 s (x1.98)
+  8 threads | Uniform 12.5 s (x2.40)  |  Clustered 13.8 s (x2.24)
+
+--------------------------------------------------------------------
+ [PAR-QUEUE] Strategy 3: Dynamic task queue (batch 4096)
+--------------------------------------------------------------------
+
+[Load Balancer] Dynamic Task Queue Started
+[Load Balancer] Points  : 2000000
+[Load Balancer] Batch   : 4096
+[Load Balancer] Threads : 2
+[Load Balancer] Batches : 489
+
+[Load Balancer] Done
+[Load Balancer] Time    : 19.11 sec
+[Load Balancer] Inside  : 1570746
+[Load Balancer] Outside : 429254
+
+
+[Load Balancer] Dynamic Task Queue Started
+[Load Balancer] Points  : 2000000
+[Load Balancer] Batch   : 4096
+[Load Balancer] Threads : 2
+[Load Balancer] Batches : 489
+
+[Load Balancer] Done
+[Load Balancer] Time    : 19.43 sec
+[Load Balancer] Inside  : 1604345
+[Load Balancer] Outside : 395655
+
+  2 threads | Uniform 19.2 s (x1.56)  |  Clustered 19.5 s (x1.59)
+
+[Load Balancer] Dynamic Task Queue Started
+[Load Balancer] Points  : 2000000
+[Load Balancer] Batch   : 4096
+[Load Balancer] Threads : 4
+[Load Balancer] Batches : 489
+
+[Load Balancer] Done
+[Load Balancer] Time    : 16.10 sec
+[Load Balancer] Inside  : 1570746
+[Load Balancer] Outside : 429254
+
+
+[Load Balancer] Dynamic Task Queue Started
+[Load Balancer] Points  : 2000000
+[Load Balancer] Batch   : 4096
+[Load Balancer] Threads : 4
+[Load Balancer] Batches : 489
+
+[Load Balancer] Done
+[Load Balancer] Time    : 15.40 sec
+[Load Balancer] Inside  : 1604345
+[Load Balancer] Outside : 395655
+
+  4 threads | Uniform 16.2 s (x1.85)  |  Clustered 15.5 s (x2.00)
+
+[Load Balancer] Dynamic Task Queue Started
+[Load Balancer] Points  : 2000000
+[Load Balancer] Batch   : 4096
+[Load Balancer] Threads : 8
+[Load Balancer] Batches : 489
+
+[Load Balancer] Done
+[Load Balancer] Time    : 12.20 sec
+[Load Balancer] Inside  : 1570746
+[Load Balancer] Outside : 429254
+
+
+[Load Balancer] Dynamic Task Queue Started
+[Load Balancer] Points  : 2000000
+[Load Balancer] Batch   : 4096
+[Load Balancer] Threads : 8
+[Load Balancer] Batches : 489
+
+[Load Balancer] Done
+[Load Balancer] Time    : 12.51 sec
+[Load Balancer] Inside  : 1604345
+[Load Balancer] Outside : 395655
+
+  8 threads | Uniform 12.3 s (x2.43)  |  Clustered 12.6 s (x2.45)
+
+--------------------------------------------------------------------
+ [VERIFY] Correctness: Sequential vs Task2/Task3 (4 threads)
+--------------------------------------------------------------------
+
+[Load Balancer] Dynamic Task Queue Started
+[Load Balancer] Points  : 2000000
+[Load Balancer] Batch   : 4096
+[Load Balancer] Threads : 4
+[Load Balancer] Batches : 489
+
+[Load Balancer] Done
+[Load Balancer] Time    : 14.40 sec
+[Load Balancer] Inside  : 1570746
+[Load Balancer] Outside : 429254
+
+
+[Load Balancer] Dynamic Task Queue Started
+[Load Balancer] Points  : 2000000
+[Load Balancer] Batch   : 4096
+[Load Balancer] Threads : 4
+[Load Balancer] Batches : 489
+
+[Load Balancer] Done
+[Load Balancer] Time    : 14.38 sec
+[Load Balancer] Inside  : 1604345
+[Load Balancer] Outside : 395655
+
+  [PASS] All 2000000 uniform results match.
+  [PASS] All 2000000 clustered results match.
+  [PASS] Dynamic queue uniform results match sequential.
+  [PASS] Dynamic queue clustered results match sequential.
+
+-----------------------------------------------------------------------
+#          MILESTONE 2 - TASK 5: CACHE LOCALITY OPTIMIZATION          #
+-----------------------------------------------------------------------
+
+--------------------------------------------------------------------
+ [TASK5-Uniform] Cache Locality - Uniform Points
+--------------------------------------------------------------------
+  Random order (baseline) | 30.2 s  | 1.00x
+  Grid sorted             | 29.2 s  | x1.03
+  Z-order sorted          | 29.14 s  | x1.04
+
+  Correctness (inside counts must match):
+    Random : 1570746
+    Grid   : 1570746
+    Z-order: 1570746
+    Match  : [PASS]
+
+--------------------------------------------------------------------
+ [TASK5-Clustered] Cache Locality - Clustered Points
+--------------------------------------------------------------------
+  Random order (baseline) | 30.4 s  | 1.00x
+  Grid sorted             | 29.9 s  | x1.02
+  Z-order sorted          | 37.48 s  | x0.81
+
+  Correctness (inside counts must match):
+    Random : 1604345
+    Grid   : 1604345
+    Z-order: 1604345
+    Match  : [PASS]
+
+--------------------------------------------------------------------
+ [TASK5-PARALLEL] Z-order + Parallel (4 threads) vs Random Sequential
+--------------------------------------------------------------------
+  Uniform   | Random Seq: 30.0 s  | Z-order Par(4t): 16.1 s  | Speedup: x1.87
+
+  Correctness (inside counts must match):
+    Random : 1570746
+    Grid   : 1570746
+    Z-order: 1570746
+    Match  : [PASS]
+
+--------------------------------------------------------------------
+ [TASK5-Clustered] Cache Locality - Clustered Points
+--------------------------------------------------------------------
+  Random order (baseline) | 30.4 s  | 1.00x
+  Grid sorted             | 29.9 s  | x1.02
+  Z-order sorted          | 37.48 s  | x0.81
+
+  Correctness (inside counts must match):
+    Random : 1604345
+    Grid   : 1604345
+    Z-order: 1604345
+    Match  : [PASS]
+
+--------------------------------------------------------------------
+ [TASK5-PARALLEL] Z-order + Parallel (4 threads) vs Random Sequential
+--------------------------------------------------------------------
+  Uniform   | Random Seq: 30.0 s  | Z-order Par(4t): 16.1 s  | Speedup: x1.87
+--------------------------------------------------------------------
+ [TASK5-Clustered] Cache Locality - Clustered Points
+--------------------------------------------------------------------
+  Random order (baseline) | 30.4 s  | 1.00x
+  Grid sorted             | 29.9 s  | x1.02
+  Z-order sorted          | 37.48 s  | x0.81
+
+  Correctness (inside counts must match):
+    Random : 1604345
+    Grid   : 1604345
+    Z-order: 1604345
+    Match  : [PASS]
+
+--------------------------------------------------------------------
+ [TASK5-PARALLEL] Z-order + Parallel (4 threads) vs Random Sequential
+--------------------------------------------------------------------
+  Uniform   | Random Seq: 30.0 s  | Z-order Par(4t): 16.1 s  | Speedup: x1.87
+
+  Correctness (inside counts must match):
+    Random : 1604345
+    Grid   : 1604345
+    Z-order: 1604345
+    Match  : [PASS]
+
+--------------------------------------------------------------------
+ [TASK5-PARALLEL] Z-order + Parallel (4 threads) vs Random Sequential
+--------------------------------------------------------------------
+  Uniform   | Random Seq: 30.0 s  | Z-order Par(4t): 16.1 s  | Speedup: x1.87
+    Match  : [PASS]
+
+--------------------------------------------------------------------
+ [TASK5-PARALLEL] Z-order + Parallel (4 threads) vs Random Sequential
+--------------------------------------------------------------------
+  Uniform   | Random Seq: 30.0 s  | Z-order Par(4t): 16.1 s  | Speedup: x1.87
+  Uniform   | Random Seq: 30.0 s  | Z-order Par(4t): 16.1 s  | Speedup: x1.87
+  Clustered | Random Seq: 31.00 s  | Z-order Par(4t): 15.73 s  | Speedup: x1.97
+
+  [Γ£ô] Cache locality reduces cache misses by grouping spatially nearby points
+  [Γ£ô] Z-order (Morton) preserves 2D locality better than simple grid sort
+  [Γ£ô] Clustered points benefit more from sorting (already spatially grouped)
+  [Γ£ô] Combined Z-order + parallel gives best overall throughput
